@@ -172,7 +172,12 @@ const EndScreen = ({ winner, onRestart }) => {
             boxShadow: isPlayerWinner ? "0 0 15px #A020F0" : "0 0 15px #FF0000"
           }}
           whileTap={{ scale: 0.95 }}
-          onClick={onRestart}
+          onClick={(e) => {
+            e.preventDefault();
+            if (typeof onRestart === 'function') {
+              onRestart();
+            }
+          }}
         >
           REENTER THE GRID
         </MotionButton>

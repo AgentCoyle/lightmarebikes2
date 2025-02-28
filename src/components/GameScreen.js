@@ -9,6 +9,7 @@ import { Bloom, EffectComposer, ChromaticAberration } from '@react-three/postpro
 import Arena from './Arena';
 import LightBike from './LightBike';
 import LightTrail from './LightTrail';
+import CyberBackground from './CyberBackground';
 
 // Custom hooks
 import useKeyboardControls from '../hooks/useKeyboardControls';
@@ -32,9 +33,14 @@ const BIKE_COLORS = {
 };
 
 // Main game component
-const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
+const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd, difficulty = 5 }) => {
   // Add state to track player elimination
   const [playerEliminated, setPlayerEliminated] = useState(false);
+  
+  // Handle player elimination event safely
+  const handlePlayerElimination = () => {
+    setPlayerEliminated(true);
+  };
   
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -45,7 +51,8 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
           onResume={onResume} 
           onStop={onStop} 
           onEnd={onEnd}
-          onPlayerEliminated={() => setPlayerEliminated(true)}
+          onPlayerEliminated={handlePlayerElimination}
+          difficulty={difficulty}
         />
         
         {/* Post-processing effects for that cyberpunk look */}
@@ -170,6 +177,27 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
         </p>
       </div>
       
+      {/* Difficulty indicator */}
+      <div
+        style={{
+          position: "absolute",
+          top: "20px",
+          right: "20px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: "4px",
+          pointerEvents: "none"
+        }}
+      >
+        <p style={{ color: "white", fontSize: "18px", fontWeight: "bold", textShadow: "0 0 5px black", margin: 0 }}>
+          Difficulty: {difficulty}
+        </p>
+        <p style={{ color: "white", fontSize: "14px", textShadow: "0 0 5px black", margin: 0 }}>
+          {difficulty <= 3 ? "EASY" : difficulty <= 6 ? "MEDIUM" : difficulty <= 8 ? "HARD" : "EXTREME"}
+        </p>
+      </div>
+      
       {/* Death overlay - outside Canvas for proper display */}
       {playerEliminated && (
         <div
@@ -237,7 +265,7 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
 };
 
 // Actual game content with 3D elements and logic
-const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd, onPlayerEliminated }) => {
+const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd, onPlayerEliminated, difficulty }) => {
   // References and state
   const timeRef = useRef({ lastTime: 0, deltaTime: 0, trailTimer: 0 });
   const playerRef = useRef(null);
@@ -250,26 +278,43 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd, onPlayerElim
     eliminated: false
   });
   
+  // Scale AI speed and behavior based on difficulty
+  const getAISpeedMultiplier = (behavior, difficulty) => {
+    const baseDifficulty = 5;
+    const difficultyFactor = difficulty / baseDifficulty;
+    
+    switch (behavior) {
+      case 'aggressive':
+        return 0.95 + (difficultyFactor * 0.1); // 0.95 at diff 5, up to 1.15 at diff 10
+      case 'defensive':
+        return 0.9 + (difficultyFactor * 0.05); // 0.9 at diff 5, up to 1.0 at diff 10
+      case 'random':
+        return 1.05 + (difficultyFactor * 0.05); // 1.05 at diff 5, up to 1.15 at diff 10
+      default:
+        return 1.0;
+    }
+  };
+  
   const [aiBikes, setAiBikes] = useState({
     ai1: {
       position: [-90, 0, 0],
       rotation: [0, Math.PI / 2, 0],
       behavior: 'aggressive',
-      speed: BASE_SPEED * 0.95,
+      speed: BASE_SPEED * getAISpeedMultiplier('aggressive', difficulty),
       eliminated: false
     },
     ai2: {
       position: [90, 0, 0],
       rotation: [0, -Math.PI / 2, 0],
       behavior: 'defensive',
-      speed: BASE_SPEED * 0.9,
+      speed: BASE_SPEED * getAISpeedMultiplier('defensive', difficulty),
       eliminated: false
     },
     ai3: {
       position: [0, 0, 90],
       rotation: [0, Math.PI, 0],
       behavior: 'random',
-      speed: BASE_SPEED * 1.05,
+      speed: BASE_SPEED * getAISpeedMultiplier('random', difficulty),
       eliminated: false
     }
   });
@@ -375,8 +420,10 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd, onPlayerElim
         
         setActivePlayers(prev => prev - 1);
         
-        // Notify parent component about player elimination
-        onPlayerEliminated();
+        // Notify parent component about player elimination - ensure no event is passed
+        if (typeof onPlayerEliminated === 'function') {
+          onPlayerEliminated();
+        }
         
         // Check if game should end
         if (activePlayers === 1) {
@@ -413,7 +460,8 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd, onPlayerElim
               trails,
               [playerBike.position[0], playerBike.position[2]],
               ARENA_SIZE,
-              timeRef.current.deltaTime
+              timeRef.current.deltaTime,
+              difficulty
             );
             
             // Update AI state
@@ -483,8 +531,13 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd, onPlayerElim
   const handleGameEnd = () => {
     // Determine the winner
     const playerWon = !playerBike.eliminated;
+    const winnerValue = playerWon ? 'player' : 'ai';
+    
+    // Use setTimeout to delay the game end event
     setTimeout(() => {
-      onEnd(playerWon ? 'player' : 'ai');
+      if (typeof onEnd === 'function') {
+        onEnd(winnerValue);
+      }
     }, 1500); // Small delay for dramatic effect
   };
   
@@ -542,6 +595,9 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd, onPlayerElim
       />
       <pointLight position={[0, 45, 0]} intensity={0.7} color="#5588ff" />
       
+      {/* Cyber Background */}
+      <CyberBackground size={ARENA_SIZE * 2} />
+      
       {/* Environment */}
       <Environment preset="night" />
       
@@ -573,16 +629,16 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd, onPlayerElim
       ))}
       
       {/* Light trails */}
-      {Object.entries(trails).map(([id, trail]) => (
-        trail.points.length > 1 && (
+      {Object.entries(trails).map(([id, trail]) => 
+        trail.points.length > 1 ? (
           <LightTrail 
             key={id}
             points={trail.points}
             color={trail.color}
             height={TRAIL_HEIGHT}
           />
-        )
-      ))}
+        ) : null
+      )}
     </>
   );
 };

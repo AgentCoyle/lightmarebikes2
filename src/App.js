@@ -17,8 +17,18 @@ const GAME_STATE = {
 function App() {
   const [gameState, setGameState] = useState(GAME_STATE.START);
   const [winner, setWinner] = useState(null);
+  const [difficulty, setDifficulty] = useState(5); // Default difficulty level
 
-  const startGame = () => {
+  const startGame = (selectedDifficulty) => {
+    // If an event object was accidentally passed, ignore it
+    if (selectedDifficulty && typeof selectedDifficulty === 'object' && 'nativeEvent' in selectedDifficulty) {
+      // Use default difficulty if an event was passed
+      setGameState(GAME_STATE.PLAYING);
+      return;
+    }
+    
+    // Otherwise use the provided difficulty or keep current one
+    setDifficulty(selectedDifficulty || difficulty); 
     setGameState(GAME_STATE.PLAYING);
   };
 
@@ -48,6 +58,7 @@ function App() {
       {(gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.PAUSED) && (
         <GameScreen 
           isPlaying={gameState === GAME_STATE.PLAYING}
+          difficulty={difficulty}
           onPause={pauseGame}
           onResume={resumeGame}
           onStop={stopGame}

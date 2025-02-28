@@ -32,11 +32,11 @@ const LightTrail = ({
   }, [color]);
   
   // Generate wall geometry
-  const wallGeometry = useMemo(() => {
-    if (points.length < 2) return null;
+  const wallSegments = useMemo(() => {
+    if (points.length < 2) return [];
     
     // Create wall segments between each pair of points
-    const wallSegments = [];
+    const segments = [];
     
     for (let i = 0; i < points.length - 1; i++) {
       const startPoint = points[i];
@@ -50,26 +50,23 @@ const LightTrail = ({
       // Skip if points are too close
       if (length < 0.01) continue;
       
-      // Create wall geometry
-      const wallGeometry = new THREE.BoxGeometry(thickness, height, length);
-      
       // Position at midpoint between the two points
       const midX = (startPoint[0] + endPoint[0]) / 2;
       const midZ = (startPoint[1] + endPoint[1]) / 2;
       
       // Calculate rotation to align with direction
-      const angle = Math.atan2(dirZ, dirX);
+      const angle = Math.atan2(dirX, dirZ);
       
-      // Create wall segment
-      wallSegments.push({
-        geometry: wallGeometry,
+      // Create wall segment - rotate correctly to align with direction
+      segments.push({
+        length,
         position: [midX, height / 2, midZ],
-        rotation: [0, -angle, 0]
+        rotation: [0, angle, 0]
       });
     }
     
-    return wallSegments;
-  }, [points, height, thickness]);
+    return segments;
+  }, [points, height]);
   
   // Add pulsing effect to the trail
   useFrame(({ clock }) => {
@@ -92,10 +89,10 @@ const LightTrail = ({
       <mesh geometry={tubeGeometry} material={material} />
       
       {/* The wall segments */}
-      {wallGeometry && wallGeometry.map((segment, index) => (
+      {wallSegments.map((segment, index) => (
         <mesh
           key={index}
-          geometry={segment.geometry}
+          geometry={new THREE.BoxGeometry(thickness, height, segment.length)}
           material={material}
           position={segment.position}
           rotation={segment.rotation}

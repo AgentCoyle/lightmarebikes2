@@ -14,7 +14,8 @@ const useAI = () => {
     trails,
     playerPosition,
     arenaSize,
-    deltaTime
+    deltaTime,
+    difficulty = 5 // Default to medium difficulty if not provided
   ) => {
     // If AI has lost, don't move
     if (!isInsideArena(position, arenaSize)) {
@@ -25,9 +26,18 @@ const useAI = () => {
       };
     }
     
+    // Scale AI capabilities based on difficulty (1-10)
+    // Higher difficulty means better lookahead, more options, and smarter decisions
+    const difficultyFactor = difficulty / 5; // 1 = baseline (medium), 2 = maximum
+    
     // Check for potential collisions in the current direction
-    const collisionCheckDistance = speed * 20; // Look further ahead for planning
-    const collisionCheckPoints = 8; // Number of points to check
+    // Scale lookahead distance based on difficulty
+    const baseCollisionCheckDistance = speed * 15;
+    const collisionCheckDistance = baseCollisionCheckDistance * (0.7 + (difficultyFactor * 0.6)); 
+    
+    // Scale number of check points based on difficulty
+    const baseCollisionCheckPoints = 6;
+    const collisionCheckPoints = Math.floor(baseCollisionCheckPoints * (0.7 + (difficultyFactor * 0.6)));
     
     // Store all possible directions to try
     const possibleDirections = [];
@@ -47,7 +57,7 @@ const useAI = () => {
     // Get angle to player
     const angleToPlayer = Math.atan2(normalizedToPlayerVector[0], normalizedToPlayerVector[1]);
     
-    // AI behavior based on type
+    // AI behavior based on type and difficulty
     switch (behavior) {
       case 'aggressive': // Cyan - tries to cut off the player
         // Calculate angles: straight ahead, towards player, and some variations
@@ -56,33 +66,52 @@ const useAI = () => {
           weight: 1.0
         });
         
-        // Towards player with slight offset
+        // Towards player with slight offset - more aggressive at higher difficulties
         possibleDirections.push({
           angle: angleToPlayer,
-          weight: 1.5 
+          weight: 1.0 + (difficultyFactor * 0.5) // More weight at higher difficulties
         });
         
         // Add more aggressive options - try to intercept player
         possibleDirections.push({
-          angle: angleToPlayer + Math.PI / 6,
-          weight: 1.2
+          angle: angleToPlayer + Math.PI / (6 + (10 - difficulty)), // Tighter angles at higher difficulties
+          weight: 0.8 + (difficultyFactor * 0.4)
         });
         
         possibleDirections.push({
-          angle: angleToPlayer - Math.PI / 6,
-          weight: 1.2
+          angle: angleToPlayer - Math.PI / (6 + (10 - difficulty)),
+          weight: 0.8 + (difficultyFactor * 0.4)
         });
         
-        // Add some random variations
+        // Add some random variations - fewer at higher difficulties
+        const randomVariationWeight = Math.max(0.2, 0.8 - (difficultyFactor * 0.3));
         possibleDirections.push({
           angle: rotation[1] + Math.PI / 4,
-          weight: 0.7
+          weight: randomVariationWeight
         });
         
         possibleDirections.push({
           angle: rotation[1] - Math.PI / 4,
-          weight: 0.7
+          weight: randomVariationWeight
         });
+        
+        // Add more precise interception angles at higher difficulties
+        if (difficulty > 6) {
+          // Calculate interception point based on player direction and speed
+          // This is a simplified prediction that gets more accurate at higher difficulties
+          const predictionAccuracy = (difficulty - 6) / 4; // 0.25 to 1.0
+          
+          // Add precise interception angles
+          possibleDirections.push({
+            angle: angleToPlayer + Math.PI / 12 * predictionAccuracy,
+            weight: 1.2 + predictionAccuracy
+          });
+          
+          possibleDirections.push({
+            angle: angleToPlayer - Math.PI / 12 * predictionAccuracy,
+            weight: 1.2 + predictionAccuracy
+          });
+        }
         break;
         
       case 'defensive': // Pink - plays it safe, avoids collisions
@@ -93,36 +122,58 @@ const useAI = () => {
         });
         
         // Add more defensive options - try to move away from trails
+        // Higher difficulties have more precise angle calculations
+        const defensiveAngleBase = Math.PI / (6 - (difficulty * 0.2));
         possibleDirections.push({
-          angle: rotation[1] + Math.PI / 6,
+          angle: rotation[1] + defensiveAngleBase,
           weight: 0.8
         });
         
         possibleDirections.push({
-          angle: rotation[1] - Math.PI / 6,
+          angle: rotation[1] - defensiveAngleBase,
           weight: 0.8
         });
         
         possibleDirections.push({
-          angle: rotation[1] + Math.PI / 3,
+          angle: rotation[1] + defensiveAngleBase * 2,
           weight: 0.7
         });
         
         possibleDirections.push({
-          angle: rotation[1] - Math.PI / 3,
+          angle: rotation[1] - defensiveAngleBase * 2,
           weight: 0.7
         });
         
         // Add some random variations for unpredictability
+        // Higher difficulties have less randomness
+        const defensiveRandomWeight = Math.max(0.2, 0.6 - (difficultyFactor * 0.2));
         possibleDirections.push({
           angle: rotation[1] + Math.PI / 2,
-          weight: 0.6
+          weight: defensiveRandomWeight
         });
         
         possibleDirections.push({
           angle: rotation[1] - Math.PI / 2,
-          weight: 0.6
+          weight: defensiveRandomWeight
         });
+        
+        // At higher difficulties, add more escape options
+        if (difficulty > 5) {
+          // Add more precise escape angles
+          const escapeAngles = Math.floor(difficulty / 2); // 3-5 additional angles
+          for (let i = 1; i <= escapeAngles; i++) {
+            const angleOffset = (Math.PI / 8) * i;
+            possibleDirections.push({
+              angle: rotation[1] + angleOffset,
+              weight: 0.9 - (i * 0.1)
+            });
+            
+            possibleDirections.push({
+              angle: rotation[1] - angleOffset,
+              weight: 0.9 - (i * 0.1)
+            });
+          }
+        }
         break;
         
       case 'random': // Yellow - makes unpredictable movements
@@ -133,19 +184,34 @@ const useAI = () => {
         });
         
         // Add a lot of random options with varying weights
-        for (let i = 0; i < 6; i++) {
-          const randomAngle = rotation[1] + (Math.random() * 2 - 1) * Math.PI / 2;
+        // Higher difficulties have more controlled randomness
+        const randomOptions = 4 + Math.floor(difficulty / 2); // 5-9 options
+        for (let i = 0; i < randomOptions; i++) {
+          // At higher difficulties, randomness is more controlled
+          const randomFactor = difficulty > 7 ? 0.7 : 1.0;
+          const randomAngle = rotation[1] + (Math.random() * 2 - 1) * Math.PI / 2 * randomFactor;
+          
           possibleDirections.push({
             angle: randomAngle,
             weight: 0.5 + Math.random() * 0.5
           });
         }
         
-        // Occasionally, make drastic turns
-        if (Math.random() < 0.1) {
+        // Occasionally, make drastic turns - less likely at higher difficulties
+        const drasticTurnChance = difficulty > 7 ? 0.05 : 0.1;
+        if (Math.random() < drasticTurnChance) {
           possibleDirections.push({
             angle: rotation[1] + Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1),
             weight: 1.2
+          });
+        }
+        
+        // At higher difficulties, add some strategic options
+        if (difficulty > 6) {
+          // Sometimes try to move towards open spaces
+          possibleDirections.push({
+            angle: angleToPlayer + Math.PI, // Away from player
+            weight: 0.7
           });
         }
         break;
@@ -196,6 +262,9 @@ const useAI = () => {
         // Create a temporary rotation array for collision check
         const testRotation = [0, angle, 0];
         
+        // Trail gap decreases with difficulty (harder to exploit gaps)
+        const trailGap = Math.max(1, 4 - Math.floor(difficulty / 3));
+        
         // Check if this position would cause a collision
         const collisionResult = checkBikeCollision(
           checkPosition,
@@ -203,7 +272,7 @@ const useAI = () => {
           trails,
           arenaSize,
           id,
-          3 // Trail gap
+          trailGap
         );
         
         if (collisionResult.collided) {
@@ -228,10 +297,10 @@ const useAI = () => {
       if (behavior === 'aggressive') {
         // Reward directions that bring AI closer to player
         const angleToPlayerDiff = Math.abs(normalizeAngle(angle - angleToPlayer));
-        score += (1 - (angleToPlayerDiff / Math.PI)) * 10; // Up to 10 bonus points for heading towards player
+        score += (1 - (angleToPlayerDiff / Math.PI)) * 10 * difficultyFactor; // More bonus at higher difficulties
       } else if (behavior === 'defensive') {
         // Reward directions that keep AI away from other trails
-        score += longestSafeDistance * 0.5;
+        score += longestSafeDistance * 0.5 * difficultyFactor;
       }
       
       // Update best direction if this one is better
@@ -255,7 +324,14 @@ const useAI = () => {
       Math.cos(bestDirection)
     ];
     
-    const adjustedSpeed = behavior === 'aggressive' ? speed * 1.1 : speed;
+    // Adjust speed based on behavior and difficulty
+    let adjustedSpeed = speed;
+    if (behavior === 'aggressive') {
+      adjustedSpeed *= 1.0 + (0.1 * difficultyFactor); // Faster at higher difficulties
+    } else if (behavior === 'defensive' && difficulty > 7) {
+      // Defensive bikes get slightly faster at very high difficulties
+      adjustedSpeed *= 1.0 + (0.05 * (difficulty - 7) / 3);
+    }
     
     const newPosition = [
       position[0] + moveDirection[0] * adjustedSpeed * deltaTime,

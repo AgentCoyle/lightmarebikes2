@@ -1,11 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 
 const MotionDiv = motion.div;
 const MotionH1 = motion.h1;
 const MotionButton = motion.button;
+const MotionSelect = motion.select;
 
 const StartScreen = ({ onStart }) => {
+  const [difficulty, setDifficulty] = useState(5);
+  
+  const handleStart = () => {
+    onStart(difficulty);
+  };
+  
   return (
     <div 
       style={{
@@ -114,6 +121,66 @@ const StartScreen = ({ onStart }) => {
           Be the last one standing to achieve immortality.
         </p>
         
+        {/* Difficulty selector */}
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "0.5rem",
+          marginBottom: "1rem"
+        }}>
+          <label 
+            htmlFor="difficulty" 
+            style={{
+              color: "#00BFFF",
+              fontFamily: "monospace",
+              fontSize: "1rem"
+            }}
+          >
+            DIFFICULTY LEVEL
+          </label>
+          <MotionSelect
+            id="difficulty"
+            value={difficulty}
+            onChange={(e) => setDifficulty(parseInt(e.target.value))}
+            style={{
+              background: "rgba(0, 0, 0, 0.7)",
+              border: "2px solid #00BFFF",
+              color: "#00BFFF",
+              padding: "0.5rem 1rem",
+              fontFamily: "monospace",
+              fontSize: "1rem",
+              cursor: "pointer",
+              outline: "none",
+              width: "200px",
+              textAlign: "center",
+              appearance: "none",
+              WebkitAppearance: "none",
+              MozAppearance: "none",
+              backgroundImage: "url('data:image/svg+xml;utf8,<svg fill=\"%2300BFFF\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/><path d=\"M0 0h24v24H0z\" fill=\"none\"/></svg>')",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 10px center"
+            }}
+            whileHover={{ 
+              boxShadow: "0 0 15px #00BFFF"
+            }}
+          >
+            {[...Array(10)].map((_, i) => (
+              <option 
+                key={i + 1} 
+                value={i + 1}
+                style={{
+                  background: "black",
+                  color: "#00BFFF",
+                  fontFamily: "monospace"
+                }}
+              >
+                {i + 1} - {i < 3 ? "EASY" : i < 6 ? "MEDIUM" : i < 9 ? "HARD" : "EXTREME"}
+              </option>
+            ))}
+          </MotionSelect>
+        </div>
+        
         <MotionButton
           style={{
             background: "transparent",
@@ -131,7 +198,7 @@ const StartScreen = ({ onStart }) => {
             boxShadow: "0 0 15px #00BFFF"
           }}
           whileTap={{ scale: 0.95 }}
-          onClick={onStart}
+          onClick={handleStart}
         >
           ENTER THE GRID
         </MotionButton>
