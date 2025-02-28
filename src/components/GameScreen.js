@@ -16,8 +16,8 @@ import useCollisionDetection from '../hooks/useCollisionDetection';
 import useAI from '../hooks/useAI';
 
 // Constants
-const ARENA_SIZE = 100;
-const BASE_SPEED = 15;
+const ARENA_SIZE = 300;
+const BASE_SPEED = 45;
 const BOOST_MULTIPLIER = 1.5;
 const TURN_SPEED = 2.5;
 const TRAIL_UPDATE_INTERVAL = 0.1; // seconds
@@ -33,6 +33,9 @@ const BIKE_COLORS = {
 
 // Main game component
 const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
+  // Add state to track player elimination
+  const [playerEliminated, setPlayerEliminated] = useState(false);
+  
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
       <Canvas shadows>
@@ -41,7 +44,8 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
           onPause={onPause} 
           onResume={onResume} 
           onStop={onStop} 
-          onEnd={onEnd} 
+          onEnd={onEnd}
+          onPlayerEliminated={() => setPlayerEliminated(true)}
         />
         
         {/* Post-processing effects for that cyberpunk look */}
@@ -166,6 +170,38 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
         </p>
       </div>
       
+      {/* Death overlay - outside Canvas for proper display */}
+      {playerEliminated && (
+        <div
+          style={{
+            position: "absolute",
+            top: "0",
+            left: "0",
+            right: "0",
+            bottom: "0",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            background: "rgba(255, 0, 0, 0.3)",
+            pointerEvents: "none",
+            zIndex: 10
+          }}
+        >
+          <motion.p
+            style={{
+              color: "white",
+              fontSize: "4rem",
+              fontWeight: "bold",
+              textShadow: "0 0 10px #FF0000, 0 0 20px #FF0000"
+            }}
+            animate={{ opacity: [0.5, 1, 0.5], scale: [0.9, 1.1, 0.9] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            ELIMINATED
+          </motion.p>
+        </div>
+      )}
+      
       {/* Pause overlay */}
       {!isPlaying && (
         <div
@@ -201,14 +237,14 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
 };
 
 // Actual game content with 3D elements and logic
-const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
+const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd, onPlayerEliminated }) => {
   // References and state
   const timeRef = useRef({ lastTime: 0, deltaTime: 0, trailTimer: 0 });
   const playerRef = useRef(null);
   
   // Game state
   const [playerBike, setPlayerBike] = useState({
-    position: [0, 0, -30],
+    position: [0, 0, -90],
     rotation: [0, 0, 0],
     speed: BASE_SPEED,
     eliminated: false
@@ -216,21 +252,21 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
   
   const [aiBikes, setAiBikes] = useState({
     ai1: {
-      position: [-30, 0, 0],
+      position: [-90, 0, 0],
       rotation: [0, Math.PI / 2, 0],
       behavior: 'aggressive',
       speed: BASE_SPEED * 0.95,
       eliminated: false
     },
     ai2: {
-      position: [30, 0, 0],
+      position: [90, 0, 0],
       rotation: [0, -Math.PI / 2, 0],
       behavior: 'defensive',
       speed: BASE_SPEED * 0.9,
       eliminated: false
     },
     ai3: {
-      position: [0, 0, 30],
+      position: [0, 0, 90],
       rotation: [0, Math.PI, 0],
       behavior: 'random',
       speed: BASE_SPEED * 1.05,
@@ -338,6 +374,9 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
         }));
         
         setActivePlayers(prev => prev - 1);
+        
+        // Notify parent component about player elimination
+        onPlayerEliminated();
         
         // Check if game should end
         if (activePlayers === 1) {
@@ -457,8 +496,8 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
       if (playerBike.eliminated) return;
       
       // Calculate camera position based on player bike
-      const cameraHeight = 40;
-      const cameraDistance = 30;
+      const cameraHeight = 120;
+      const cameraDistance = 90;
       
       // Position camera behind and above player
       const directionVector = [
@@ -473,7 +512,7 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
       );
       
       // Look at a point ahead of the player
-      const lookAheadAmount = 15;
+      const lookAheadAmount = 45;
       const targetPosition = [
         playerBike.position[0] + Math.sin(playerBike.rotation[1]) * lookAheadAmount,
         0,
@@ -489,19 +528,19 @@ const GameContent = ({ isPlaying, onPause, onResume, onStop, onEnd }) => {
   return (
     <>
       {/* Camera */}
-      <PerspectiveCamera makeDefault position={[0, 40, 40]} fov={60} />
+      <PerspectiveCamera makeDefault position={[0, 120, 120]} fov={60} />
       <Camera />
       
       {/* Lighting */}
-      <ambientLight intensity={0.3} />
+      <ambientLight intensity={0.4} />
       <directionalLight 
-        position={[10, 20, 10]} 
-        intensity={0.8} 
+        position={[30, 60, 30]}
+        intensity={1.0}
         castShadow 
         shadow-mapSize-width={2048} 
         shadow-mapSize-height={2048} 
       />
-      <pointLight position={[0, 15, 0]} intensity={0.5} color="#5588ff" />
+      <pointLight position={[0, 45, 0]} intensity={0.7} color="#5588ff" />
       
       {/* Environment */}
       <Environment preset="night" />

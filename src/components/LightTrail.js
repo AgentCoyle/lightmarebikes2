@@ -31,6 +31,46 @@ const LightTrail = ({
     });
   }, [color]);
   
+  // Generate wall geometry
+  const wallGeometry = useMemo(() => {
+    if (points.length < 2) return null;
+    
+    // Create wall segments between each pair of points
+    const wallSegments = [];
+    
+    for (let i = 0; i < points.length - 1; i++) {
+      const startPoint = points[i];
+      const endPoint = points[i + 1];
+      
+      // Calculate direction vector between points
+      const dirX = endPoint[0] - startPoint[0];
+      const dirZ = endPoint[1] - startPoint[1];
+      const length = Math.sqrt(dirX * dirX + dirZ * dirZ);
+      
+      // Skip if points are too close
+      if (length < 0.01) continue;
+      
+      // Create wall geometry
+      const wallGeometry = new THREE.BoxGeometry(thickness, height, length);
+      
+      // Position at midpoint between the two points
+      const midX = (startPoint[0] + endPoint[0]) / 2;
+      const midZ = (startPoint[1] + endPoint[1]) / 2;
+      
+      // Calculate rotation to align with direction
+      const angle = Math.atan2(dirZ, dirX);
+      
+      // Create wall segment
+      wallSegments.push({
+        geometry: wallGeometry,
+        position: [midX, height / 2, midZ],
+        rotation: [0, -angle, 0]
+      });
+    }
+    
+    return wallSegments;
+  }, [points, height, thickness]);
+  
   // Add pulsing effect to the trail
   useFrame(({ clock }) => {
     if (trailRef.current) {
@@ -42,24 +82,24 @@ const LightTrail = ({
   // If there aren't enough points, don't render anything
   if (!curve || points.length < 2) return null;
   
-  // Generate the trail geometry
+  // Generate the trail geometry for the ground trail
   const segments = points.length * 3; // More segments for smoother curves
   const tubeGeometry = new THREE.TubeGeometry(curve, segments, thickness, 8, false);
   
   return (
     <group ref={trailRef}>
-      {/* The main light tube */}
+      {/* The main light tube on the ground */}
       <mesh geometry={tubeGeometry} material={material} />
       
-      {/* Vertical light beams at each point (except the last one, which is the bike's current position) */}
-      {points.slice(0, -1).map((point, index) => (
-        <mesh 
-          key={index} 
-          position={[point[0], height / 2, point[1]]} 
+      {/* The wall segments */}
+      {wallGeometry && wallGeometry.map((segment, index) => (
+        <mesh
+          key={index}
+          geometry={segment.geometry}
           material={material}
-        >
-          <boxGeometry args={[thickness, height, thickness]} />
-        </mesh>
+          position={segment.position}
+          rotation={segment.rotation}
+        />
       ))}
     </group>
   );
