@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { motion } from 'framer-motion';
-import { FaPause, FaPlay, FaStop } from 'react-icons/fa';
+import { FaPause, FaPlay, FaStop, FaRedo } from 'react-icons/fa';
 import { PerspectiveCamera, Environment } from '@react-three/drei';
 import { Bloom, EffectComposer, ChromaticAberration } from '@react-three/postprocessing';
 
@@ -36,11 +36,43 @@ const BIKE_COLORS = {
 const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd, difficulty = 5 }) => {
   // Add state to track player elimination
   const [playerEliminated, setPlayerEliminated] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
   
   // Handle player elimination event safely
   const handlePlayerElimination = () => {
     setPlayerEliminated(true);
   };
+
+  // Handle game end event
+  const handleGameEnd = (winner) => {
+    setGameEnded(true);
+    onEnd(winner);
+  };
+  
+  // Handle restart game
+  const handleRestart = () => {
+    // Reset game state
+    setPlayerEliminated(false);
+    setGameEnded(false);
+    
+    // Restart the game by calling onStop and then onEnd
+    // This will navigate back to the start screen
+    onStop();
+  };
+
+  // Listen for space key to restart when game is over
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space' && playerEliminated && !gameEnded) {
+        handleRestart();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [playerEliminated, gameEnded]);
   
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -50,7 +82,7 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd, difficulty = 
           onPause={onPause} 
           onResume={onResume} 
           onStop={onStop} 
-          onEnd={onEnd}
+          onEnd={handleGameEnd}
           onPlayerEliminated={handlePlayerElimination}
           difficulty={difficulty}
         />
@@ -173,7 +205,7 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd, difficulty = 
           S - Slow down
         </p>
         <p style={{ color: "white", fontSize: "14px", textShadow: "0 0 5px black", margin: 0 }}>
-          Space - Pause
+          Space - Pause/Restart
         </p>
       </div>
       
@@ -199,7 +231,7 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd, difficulty = 
       </div>
       
       {/* Death overlay - outside Canvas for proper display */}
-      {playerEliminated && (
+      {playerEliminated && !gameEnded && (
         <div
           style={{
             position: "absolute",
@@ -208,10 +240,10 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd, difficulty = 
             right: "0",
             bottom: "0",
             display: "flex",
+            flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
             background: "rgba(255, 0, 0, 0.3)",
-            pointerEvents: "none",
             zIndex: 10
           }}
         >
@@ -220,18 +252,58 @@ const GameScreen = ({ isPlaying, onPause, onResume, onStop, onEnd, difficulty = 
               color: "white",
               fontSize: "4rem",
               fontWeight: "bold",
-              textShadow: "0 0 10px #FF0000, 0 0 20px #FF0000"
+              textShadow: "0 0 10px #FF0000, 0 0 20px #FF0000",
+              marginBottom: "2rem"
             }}
             animate={{ opacity: [0.5, 1, 0.5], scale: [0.9, 1.1, 0.9] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
             ELIMINATED
           </motion.p>
+          
+          {/* Restart button */}
+          <motion.button
+            onClick={handleRestart}
+            style={{
+              backgroundColor: "#00BFFF",
+              color: "white",
+              border: "none",
+              borderRadius: "9999px",
+              padding: "1rem 2rem",
+              fontSize: "1.5rem",
+              fontWeight: "bold",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              boxShadow: "0 0 15px #00BFFF, 0 0 30px #00BFFF",
+              gap: "0.5rem"
+            }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            animate={{ opacity: [0.8, 1, 0.8] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          >
+            <FaRedo /> RESTART
+          </motion.button>
+          
+          <motion.p
+            style={{
+              color: "white",
+              fontSize: "1.2rem",
+              marginTop: "1rem",
+              textShadow: "0 0 5px #00BFFF, 0 0 10px #00BFFF"
+            }}
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          >
+            Press SPACE to restart
+          </motion.p>
         </div>
       )}
       
       {/* Pause overlay */}
-      {!isPlaying && (
+      {!isPlaying && !playerEliminated && (
         <div
           style={{
             position: "absolute",

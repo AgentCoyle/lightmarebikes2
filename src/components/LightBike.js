@@ -11,7 +11,7 @@ const LightBike = ({
   isActive = true,
   velocity = 0.5,
   name,
-  scale = 1
+  scale = 5
 }) => {
   const bikeRef = useRef();
   
@@ -20,17 +20,27 @@ const LightBike = ({
     color: color,
     emissive: color,
     emissiveIntensity: 0.8,
-    metalness: 0.8,
-    roughness: 0.2,
+    metalness: 0.9,
+    roughness: 0.1,
   }), [color]);
   
   const glowMaterial = useMemo(() => new MeshStandardMaterial({
     color: color,
     emissive: color,
-    emissiveIntensity: 1,
+    emissiveIntensity: 1.2,
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.9,
     metalness: 0.2,
+    roughness: 0,
+  }), [color]);
+  
+  const accentMaterial = useMemo(() => new MeshStandardMaterial({
+    color: '#ffffff',
+    emissive: color,
+    emissiveIntensity: 1.5,
+    transparent: true,
+    opacity: 0.95,
+    metalness: 1.0,
     roughness: 0,
   }), [color]);
   
@@ -41,7 +51,11 @@ const LightBike = ({
       bikeRef.current.children.forEach(child => {
         if (child.material === glowMaterial) {
           // Pulse the glow elements
-          child.material.emissiveIntensity = 0.8 + Math.sin(t * 5) * 0.2;
+          child.material.emissiveIntensity = 1.2 + Math.sin(t * 5) * 0.3;
+        }
+        if (child.material === accentMaterial) {
+          // Pulse the accent elements more intensely
+          child.material.emissiveIntensity = 1.5 + Math.sin(t * 7) * 0.5;
         }
       });
     }
@@ -49,58 +63,86 @@ const LightBike = ({
   
   return (
     <group ref={bikeRef} position={position} rotation={rotation} scale={[scale, scale, scale]}>
-      {/* Bike body */}
+      {/* Main bike body - longer and sleeker */}
       <mesh material={bodyMaterial} castShadow receiveShadow>
-        <boxGeometry args={[2, 0.5, 0.8]} />
+        <boxGeometry args={[0.7, 0.4, 3.2]} />
       </mesh>
       
-      {/* Front section */}
-      <mesh position={[1, 0, 0]} material={bodyMaterial} castShadow>
-        <boxGeometry args={[0.6, 0.3, 0.4]} />
+      {/* Front elongated section */}
+      <mesh position={[0, 0, 1.8]} material={bodyMaterial} castShadow>
+        <boxGeometry args={[0.4, 0.25, 1.0]} />
       </mesh>
       
-      {/* Rider silhouette */}
-      <mesh position={[0, 0.5, 0]} material={bodyMaterial} castShadow>
-        <boxGeometry args={[0.8, 0.6, 0.5]} />
+      {/* Front angled fairing */}
+      <mesh position={[0, 0.2, 2.4]} rotation={[Math.PI / 6, 0, 0]} material={bodyMaterial} castShadow>
+        <boxGeometry args={[0.5, 0.2, 0.6]} />
       </mesh>
       
-      {/* Wheels */}
-      <mesh position={[-0.7, -0.3, 0]} rotation={[0, 0, Math.PI / 2]} material={glowMaterial}>
-        <torusGeometry args={[0.3, 0.06, 16, 24]} />
+      {/* Rider silhouette - more streamlined */}
+      <mesh position={[0, 0.45, 0.2]} material={bodyMaterial} castShadow>
+        <boxGeometry args={[0.5, 0.5, 1.2]} />
       </mesh>
       
-      <mesh position={[0.7, -0.3, 0]} rotation={[0, 0, Math.PI / 2]} material={glowMaterial}>
-        <torusGeometry args={[0.3, 0.06, 16, 24]} />
+      {/* Rider helmet */}
+      <mesh position={[0, 0.6, 0.8]} material={bodyMaterial} castShadow>
+        <sphereGeometry args={[0.25, 16, 16]} />
       </mesh>
       
-      {/* Glow elements */}
-      <mesh position={[0, -0.05, 0]} material={glowMaterial}>
-        <boxGeometry args={[2.2, 0.05, 0.9]} />
+      {/* Rear section - tapered */}
+      <mesh position={[0, 0.1, -1.4]} rotation={[-Math.PI / 12, 0, 0]} material={bodyMaterial} castShadow>
+        <boxGeometry args={[0.6, 0.3, 0.8]} />
       </mesh>
       
-      <mesh position={[0, 0, 0.45]} material={glowMaterial}>
-        <boxGeometry args={[2.2, 0.6, 0.05]} />
+      {/* Wheels - larger and more Tron-like */}
+      <mesh position={[0, -0.3, -1.2]} rotation={[0, 0, Math.PI / 2]} material={glowMaterial}>
+        <torusGeometry args={[0.35, 0.04, 16, 24]} />
       </mesh>
       
-      <mesh position={[0, 0, -0.45]} material={glowMaterial}>
-        <boxGeometry args={[2.2, 0.6, 0.05]} />
+      <mesh position={[0, -0.3, 1.5]} rotation={[0, 0, Math.PI / 2]} material={glowMaterial}>
+        <torusGeometry args={[0.35, 0.04, 16, 24]} />
       </mesh>
       
-      {/* Optional name label */}
-      {name && (
-        <Text
-          position={[0, 1.2, 0]}
-          rotation={[0, 0, 0]}
-          fontSize={0.5}
-          color={color}
-          anchorX="center"
-          anchorY="middle"
-          outlineWidth={0.02}
-          outlineColor="#000000"
-        >
-          {name}
-        </Text>
-      )}
+      {/* Wheel covers - iconic Tron feature */}
+      <mesh position={[0, -0.3, -1.2]} rotation={[Math.PI / 2, 0, 0]} material={bodyMaterial}>
+        <cylinderGeometry args={[0.38, 0.38, 0.1, 24, 1, true]} />
+      </mesh>
+      
+      <mesh position={[0, -0.3, 1.5]} rotation={[Math.PI / 2, 0, 0]} material={bodyMaterial}>
+        <cylinderGeometry args={[0.38, 0.38, 0.1, 24, 1, true]} />
+      </mesh>
+      
+      {/* Main light strip along bottom */}
+      <mesh position={[0, -0.22, 0]} material={glowMaterial}>
+        <boxGeometry args={[0.75, 0.03, 3.4]} />
+      </mesh>
+      
+      {/* Side light strips - iconic Tron feature */}
+      <mesh position={[0.37, 0, 0]} material={glowMaterial}>
+        <boxGeometry args={[0.03, 0.5, 3.4]} />
+      </mesh>
+      
+      <mesh position={[-0.37, 0, 0]} material={glowMaterial}>
+        <boxGeometry args={[0.03, 0.5, 3.4]} />
+      </mesh>
+      
+      {/* Front light strip */}
+      <mesh position={[0, 0, 2.35]} material={accentMaterial}>
+        <boxGeometry args={[0.5, 0.2, 0.05]} />
+      </mesh>
+      
+      {/* Accent light strips */}
+      <mesh position={[0.36, 0.25, 1.0]} material={accentMaterial}>
+        <boxGeometry args={[0.02, 0.02, 2.0]} />
+      </mesh>
+      
+      <mesh position={[-0.36, 0.25, 1.0]} material={accentMaterial}>
+        <boxGeometry args={[0.02, 0.02, 2.0]} />
+      </mesh>
+      
+      {/* Engine glow */}
+      <mesh position={[0, 0, -1.7]} material={accentMaterial}>
+        <boxGeometry args={[0.4, 0.2, 0.1]} />
+      </mesh>
     </group>
   );
 };

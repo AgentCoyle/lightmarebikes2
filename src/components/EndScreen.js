@@ -17,6 +17,22 @@ const EndScreen = ({ winner, onRestart }) => {
     });
   }, [controls]);
 
+  // Add space key listener for restarting the game
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space') {
+        if (typeof onRestart === 'function') {
+          onRestart();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onRestart]);
+
   const isPlayerWinner = winner === 'player';
   
   return (
@@ -181,6 +197,27 @@ const EndScreen = ({ winner, onRestart }) => {
         >
           REENTER THE GRID
         </MotionButton>
+        
+        {/* Add space key prompt */}
+        <MotionP
+          style={{
+            color: "rgba(255, 255, 255, 0.7)",
+            fontFamily: "monospace",
+            fontSize: "0.9rem",
+            marginTop: "1rem",
+            textShadow: isPlayerWinner ? "0 0 5px #A020F0" : "0 0 5px #FF4500"
+          }}
+          animate={{
+            opacity: [0.5, 1, 0.5]
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        >
+          Press SPACE to reenter
+        </MotionP>
       </div>
     </div>
   );
